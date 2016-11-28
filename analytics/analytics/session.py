@@ -6,69 +6,55 @@ import iso8601
 class SessionException(Exception):
     pass
 
-class Session(object):
+def session_from_entry(entry):
+    elems = entry.split()
+    session = {'ip':elems[2].split(':')[0],
+               'start':iso8601.parse_date(elems[0]),
+               'end':iso8601.parse_date(elems[0]),
+               'requests':[]}
+    method = re.match(r'\"(.*)', elems[11]).group(1)
+    url = re.match(r'(.*:.*)/.*', elems[12]).group(1)
+    session['requests'].append({'method': method, \
+        'url' : url})
+    return session
 
-    def __init__(self, start, end, requests):
-        if not isinstance(start,datetime) or not isinstance(end, datetime):
-            raise SessionException("Start and end times must be type datetime")
-        if start > end:
-            raise SessionException("Start must be before end")
-        if not isinstance(requests,list):
-            raise SessionException("Expecting list of requests")
-        self._start = start
-        self._end = end
-        self._requests = requests
+def session_combine(s1, s2):
+    """
+    Combine two web sessions and return a new session that spans the duration
+    between the earliest start and latest end of both sessions
 
-    @classmethod
-    def from_log_entry(cls, log_entry):
-        elems = log_entry.split()
-        ip = elems[2].split(':')[0]
-        time = iso8601.parse_date(elems[0])
-        method = re.match(r'\"(.*)', elems[11]).group(1)
-        url = re.match(r'(.*:.*)/.*', elems[12]).group(1)
-        request = []
-        request.append({'method': method, \
-            'url' : url})
-        return cls(time, time, request)
 
-    def serialize(self):
-        d = {'start':self._start.isoformat(),'end':self._end.isoformat(),"requests":self._requests}
-        return d
+    :param s1: A web session
+    :param s2: A web session
+    :return: A combined web session
+    """
+    if not s1['ip'] == s2['ip']:
+        raise SessionException('Combined sessions must have the same IP')
+    new_start = s1['start'] if s1['start'] < s2['start'] else s2['start']
+    new_end = s1['end'] if s1['end'] > s2['end'] else s2['end']
+    s3 = {'ip':s1['ip'],
+          'start':new_start,
+          'end':new_end,
+          'requests': s1['requests']+s2['requests']}
+    return s3
 
-    @property
-    def start(self):
-        return self._start
+def session_delta(s1, s2):
+    """
+    Calculate the time delta between two sessions.  Returns the positive delta between the end
+    of a sessions and the start of the other session if they do not overlap. If the sessions
+     overlap than 0 is returned
 
-    @property
-    def end(self):
-        return self._end
+    :param s1:  A web session
+    :param s2:  A web session
+    :return: The time delta between the two sessions
+    """
+    delta1 = s1['start'] - s2['end']
+    delta2 = s2['start'] - s1['end']
+    delta3 = delta1 if delta1 > delta2 else delta2
+    return delta3 if delta3 > timedelta(0) else timedelta(0)
 
-    @property
-    def requests(self):
-        return self._requests
+def session_serialize(s):
 
-    def combine(self, other):
-        """
-        Combine two web sessions and return a new session that spans the duration
-        between the earliest start and latest end of both sessions
-
-        :param other: Another web session to combine
-        :return: A combined session
-        """
-        new_start = self._start if self._start < other.start else other.start
-        new_end = self._end if self._end > other.end else other.end
-        return Session(new_start,new_end,self._requests + other.requests)
-
-    def delta(self, other):
-        """
-        Calculate the time delta between two sessions.  Returns the delta between the end
-        of this session and the start of the other session.
-
-        If the sessions overlap than 0 is returned
-        :param other: Another web session
-        :return: The delta as a timedelta object
-        """
-        delta1 = self._start - other.end
-        delta2 = other._start - self.end
-        delta3 = delta1 if delta1 > delta2 else delta2
-        return delta3 if delta3 > timedelta(0) else timedelta(0)
+    s['start'] = s['start'].isoformat()
+    s['end'] = s['end'].isoformat()
+    return s

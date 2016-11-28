@@ -1,18 +1,16 @@
 from pyspark import SparkContext
-from analytics.session import SessionException
-from analytics.session import Session
-import iso8601
+from analytics.session import *
 import json
 import sys
 from datetime import *
 
-def combiner(x):
-    c = []
-    c.append(x)
-    return c
+def combiner(s):
+    slist = []
+    slist.append(s)
+    return slist
 
 def make_merge_value_func(session_time_mins):
-    def merge_value(s1, x):
+    def merge_value(slist, s):
         """
         Merge a new log time into the list of sessions
 
@@ -21,38 +19,40 @@ def make_merge_value_func(session_time_mins):
         to all sessions in the list.  For this to hold
         this function should only be used on datasets
         that have been preordered by time
-        :param s1:
-        :param x:
+        :param slist:
+        :param s:
         :return:
         """
-        last = len(s1) - 1
-        l = s1[last]
-        if l.end > x.start:
+        last_session = slist[len(slist) - 1]
+        if last_session['end'] > s['start']:
             raise SessionException("Dataset is not sorted by increasing time")
-        if x.delta(l) < session_time_mins:
-            s1[last] = l.combine(x)
+        if session_delta(last_session,s) < session_time_mins:
+            slist[len(slist) - 1] = session_combine(last_session,s)
         else:
-            s1.append(x)
-        return s1
+            slist.append(s)
+        return slist
     return merge_value
 
 def make_merge_combiners_func(session_time_mins):
-    def merge_combiners(s1, s2):
-        last1 = len(s1) - 1
-        if s1[last1].end > s2[0].start:
+    def merge_combiners(slist1, slist2):
+
+        slist1_last_index = len(slist1) - 1
+        last_session1 = slist1[slist1_last_index]
+        if last_session1['end']  > slist2[0]['start']:
             raise SessionException("Dataset is not sorted by increasing time")
-        if (s1[last1].delta(s2[0]) > session_time_mins):
-            return s1 + s2
+        if (session_delta(last_session1,slist2[0]) > session_time_mins):
+            return slist1 + slist2
         else:
-            cs = s1[last1].combine(s2[0])
-            s1[last1] = cs
-            return s1 + s2[1:]
+            cs = session_combine(last_session1,slist2[0])
+            slist1[slist1_last_index] = cs
+            return slist1 + slist2[1:]
     return merge_combiners
 
 class Sessionizer(object):
 
     def __init__(self, sc):
         self.sc = sc
+
 
     def calc_sessions_from_file(self, log_file, session_time_mins):
         log_rdd = self.sc.textFile(log_file)
@@ -63,17 +63,32 @@ class Sessionizer(object):
         return self._calc_sessions(log_rdd, session_time_mins)
 
     def _calc_sessions(self, log_rdd, session_time_mins):
+        '''
+
+        :param log_rdd:
+        :param session_time_mins:
+        :return:
+        '''
 
         mapped_ips = log_rdd.map(lambda x:
                           (x.split()[2].split(":")[0],
-                           Session.from_log_entry(x)))
+                           session_from_entry(x)))
 
-        sorted_ips = mapped_ips.sortBy(lambda x: x[1])
+        sorted_ips = mapped_ips.sortBy(lambda x: x[1]['start'])
         session_time = timedelta(minutes=session_time_mins)
-        sessions = sorted_ips.combineByKey(combiner, \
+        self.sessions = sorted_ips.combineByKey(combiner, \
                              make_merge_value_func(session_time), \
                              make_merge_combiners_func(session_time)).collect()
-        return [(s[0],[x.serialize() for x in s[1]]) for s in sessions]
+        return [[session_serialize(x) for x in s[1]] for s in self.sessions]
+
+    def average_session_time(self, sessions_rdd):
+
+        rdd1 = sessions_rdd.map(lambda x : ('time',x[1].end - x[1].start))
+        total = rdd1.reduce(lambda x, y : x + y)
+        return total/rdd1.count()
+
+
+
 
 def main(logfile, outputfile, session_time_mins):
 
