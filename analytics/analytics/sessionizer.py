@@ -53,16 +53,18 @@ class Sessionizer(object):
     def __init__(self, sc):
         self.sc = sc
 
-
     def calc_sessions_from_file(self, log_file, session_time_mins):
         log_rdd = self.sc.textFile(log_file)
-        return self._calc_sessions(log_rdd, session_time_mins)
+        return self.calc_sessions(log_rdd, session_time_mins)
 
     def calc_sessions_from_list(self, log_list, session_time_mins):
         log_rdd = self.sc.parallelize(log_list)
-        return self._calc_sessions(log_rdd, session_time_mins)
+        return self.calc_sessions(log_rdd, session_time_mins)
 
-    def _calc_sessions(self, log_rdd, session_time_mins):
+    def sessions_to_json(self, sessions_rdd):
+        return [session_serialize(s) for s in sessions_rdd.collect()]
+
+    def calc_sessions(self, log_rdd, session_time_mins):
         '''
 
         :param log_rdd:
@@ -76,26 +78,31 @@ class Sessionizer(object):
 
         sorted_ips = mapped_ips.sortBy(lambda x: x[1]['start'])
         session_time = timedelta(minutes=session_time_mins)
-        self.sessions = sorted_ips.combineByKey(combiner, \
+        combined_sessions = sorted_ips.combineByKey(combiner, \
                              make_merge_value_func(session_time), \
-                             make_merge_combiners_func(session_time)).collect()
-        return [[session_serialize(x) for x in s[1]] for s in self.sessions]
+                             make_merge_combiners_func(session_time))
+        sessions_rdd = combined_sessions.flatMap(lambda x: x[1])
+        return sessions_rdd
+
+    def calc_session_times(self, sessions_rdd):
+        rdd1 = sessions_rdd.map(lambda x: x['end'] - x['start'])
+        return rdd1
 
     def average_session_time(self, sessions_rdd):
-
-        rdd1 = sessions_rdd.map(lambda x : ('time',x[1].end - x[1].start))
+        rdd1 = self.calc_session_times(sessions_rdd)
         total = rdd1.reduce(lambda x, y : x + y)
-        return total/rdd1.count()
+        return int(total.total_seconds()/rdd1.count())
 
-
-
+    def unique_visits_per_session(self, sessions_rdd):
+        rdd1 = sessions_rdd.map(lambda x : (x['ip'],len(set(x['requests']))))
+        return rdd1.collect()
 
 def main(logfile, outputfile, session_time_mins):
 
     sessionizer = Sessionizer(SparkContext(appName="Sessionizer"))
-    sessions = sessionizer.calc_sessions_from_file(logfile, session_time_mins)
+    sessions_rdd = sessionizer.calc_sessions_from_file(logfile, session_time_mins)
     with open(outputfile, 'w') as file:
-        json.dump(sessions, file)
+        json.dump(sessionizer.sessions_to_json(sessions_rdd), file)
 
 
 if __name__ == "__main__":

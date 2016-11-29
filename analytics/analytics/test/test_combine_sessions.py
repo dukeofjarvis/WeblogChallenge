@@ -8,8 +8,8 @@ class TestCombine_sessions(TestCase):
     time2 = datetime(year=2016,month=02,day=28,minute=10)
     time3 = datetime(year=2016,month=02,day=28,minute=20)
 
-    request1 = {'method': 'GET', 'url': 'http://test.com/url/'}
-    request2 = {'method': 'POST', 'url': 'http://test.com/other/'}
+    request1 = 'test.com/url/'
+    request2 = 'test.com/other/'
 
     s1 = {'ip': '1.1.1.1',
           'start':time1,

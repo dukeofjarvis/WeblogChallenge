@@ -1,10 +1,15 @@
 from datetime import *
-import re
 import iso8601
+from urlparse import urlparse
 
 
 class SessionException(Exception):
     pass
+
+
+def parse_url_path(full_url):
+    res = urlparse(full_url)
+    return res.netloc + res.path
 
 def session_from_entry(entry):
     elems = entry.split()
@@ -12,10 +17,7 @@ def session_from_entry(entry):
                'start':iso8601.parse_date(elems[0]),
                'end':iso8601.parse_date(elems[0]),
                'requests':[]}
-    method = re.match(r'\"(.*)', elems[11]).group(1)
-    url = re.match(r'(.*:.*)/.*', elems[12]).group(1)
-    session['requests'].append({'method': method, \
-        'url' : url})
+    session['requests'].append(parse_url_path(elems[12]))
     return session
 
 def session_combine(s1, s2):
