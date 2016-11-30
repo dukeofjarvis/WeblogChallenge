@@ -2,6 +2,7 @@ from unittest import TestCase
 from ..sessionizer import *
 from pyspark import SparkContext
 from datetime import *
+import os
 
 class TestSessionizer(TestCase):
 
@@ -54,7 +55,7 @@ class TestSessionizer(TestCase):
         cls.sessionizer = Sessionizer(cls.sc)
 
     def test_calc_sessions_from_file(self):
-        filepath = 'data/log_sample.log'
+        filepath = os.path.join(os.path.dirname(__file__),'data/log_sample.log')
         res = self.sessionizer.calc_sessions_from_file(filepath, 15)
         res_json = self.sessionizer.sessions_to_json(res)
 
