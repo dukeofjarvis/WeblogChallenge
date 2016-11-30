@@ -146,9 +146,9 @@ class TestSessionizer(TestCase):
         sessions_rdd = self.sc.parallelize(sessions)
         unique_visits = self.sessionizer.unique_visits_per_session(sessions_rdd)
 
-        self.assertTrue(unique_visits[self.s2['id']] == 1)
-        self.assertTrue(unique_visits[self.s3['id']] == 2)
-        self.assertTrue(unique_visits[self.s5['id']] == 1)
+        self.assertTrue(unique_visits[self.s2['id']]['visits'] == 1)
+        self.assertTrue(unique_visits[self.s3['id']]['visits'] == 2)
+        self.assertTrue(unique_visits[self.s5['id']]['visits'] == 1)
 
 
     def test_find_engaged_users(self):
@@ -156,6 +156,6 @@ class TestSessionizer(TestCase):
         sessions_rdd = self.sc.parallelize(sessions)
         engaged = self.sessionizer.find_engaged_users(sessions_rdd)
 
-        self.assertTrue(engaged[0]['id'] == self.s5['id'])
-        self.assertTrue(engaged[1]['id'] == self.s3['id'])
-        self.assertTrue(engaged[2]['id'] == self.s2['id'])
+        self.assertTrue(engaged[0]['ip'] == self.s5['ip'])
+        self.assertTrue(engaged[1]['ip'] == self.s3['ip'])
+        self.assertTrue(engaged[2]['ip'] == self.s2['ip'])

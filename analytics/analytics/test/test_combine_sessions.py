@@ -11,26 +11,30 @@ class TestCombine_sessions(TestCase):
     request1 = 'test.com/url/'
     request2 = 'test.com/other/'
 
-    s1 = {'ip': '1.1.1.1',
-          'start':time1,
-          'end':time1,
-          'requests':
-          [request1]}
-    s2 = {'ip': '1.1.1.1',
-          'start':time2,
-          'end':time2,
-          'requests':
-          [request2]}
-    s3 = {'ip': '1.1.1.2',
-          'start':time2,
-          'end':time2,
-          'requests':
-          [request2]}
-    s4 = {'ip': '1.1.1.1',
-          'start':time1,
-          'end':time3,
-          'requests':
-          [request2]}
+    s1 = {'id':'s1',
+        'ip': '1.1.1.1',
+        'start':time1,
+        'end':time1,
+        'requests':
+        [request1]}
+    s2 = {'id':'s2',
+        'ip': '1.1.1.1',
+        'start':time2,
+        'end':time2,
+        'requests':
+        [request2]}
+    s3 = {'id':'s3',
+        'ip': '1.1.1.2',
+        'start':time2,
+        'end':time2,
+        'requests':
+        [request2]}
+    s4 = {'id':'s4',
+        'ip': '1.1.1.1',
+        'start':time1,
+        'end':time3,
+        'requests':
+        [request2]}
 
     def test_combine_different_requests(self):
         s = session_combine(self.s1, self.s2)

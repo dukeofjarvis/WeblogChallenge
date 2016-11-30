@@ -36,10 +36,12 @@ def session_combine(s1, s2):
         raise SessionException('Combined sessions must have the same IP')
     new_start = s1['start'] if s1['start'] < s2['start'] else s2['start']
     new_end = s1['end'] if s1['end'] > s2['end'] else s2['end']
-    s3 = {'ip':s1['ip'],
-          'start':new_start,
-          'end':new_end,
-          'requests': s1['requests']+s2['requests']}
+    s3 = {
+        'id':s1['id'],
+        'ip':s1['ip'],
+        'start':new_start,
+        'end':new_end,
+        'requests': s1['requests']+s2['requests']}
     return s3
 
 def session_delta(s1, s2):
