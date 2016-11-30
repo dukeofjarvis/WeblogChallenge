@@ -13,10 +13,12 @@ def parse_url_path(full_url):
 
 def session_from_entry(entry):
     elems = entry.split()
-    session = {'ip':elems[2].split(':')[0],
-               'start':iso8601.parse_date(elems[0]),
-               'end':iso8601.parse_date(elems[0]),
-               'requests':[]}
+    session = {
+        'id':hash(entry),
+        'ip':elems[2].split(':')[0],
+        'start':iso8601.parse_date(elems[0]),
+        'end':iso8601.parse_date(elems[0]),
+        'requests':[]}
     session['requests'].append(parse_url_path(elems[12]))
     return session
 

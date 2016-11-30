@@ -84,18 +84,20 @@ class Sessionizer(object):
         sessions_rdd = combined_sessions.flatMap(lambda x: x[1])
         return sessions_rdd
 
-    def calc_session_times(self, sessions_rdd):
-        rdd1 = sessions_rdd.map(lambda x: x['end'] - x['start'])
-        return rdd1
-
     def average_session_time(self, sessions_rdd):
-        rdd1 = self.calc_session_times(sessions_rdd)
+        rdd1 = sessions_rdd.map(lambda x: x['end'] - x['start'])
         total = rdd1.reduce(lambda x, y : x + y)
         return int(total.total_seconds()/rdd1.count())
 
     def unique_visits_per_session(self, sessions_rdd):
-        rdd1 = sessions_rdd.map(lambda x : (x['ip'],len(set(x['requests']))))
-        return rdd1.collect()
+        rdd1 = sessions_rdd.map(lambda x : (x['id'],len(set(x['requests']))))
+        return rdd1.collectAsMap()
+
+    def find_engaged_users(self, sessions_rdd):
+        rdd1 = sessions_rdd.map(lambda x: dict(x, duration=x['end'] - x['start']))
+        rdd2 = rdd1.sortBy(lambda x: -x['duration'])
+        return rdd2.collect()
+
 
 def main(logfile, outputfile, session_time_mins):
 

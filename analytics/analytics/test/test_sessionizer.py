@@ -12,108 +12,46 @@ class TestSessionizer(TestCase):
     request1 = 'test.com/url/'
     request2 = 'test.com/other/'
 
-    s1 = {'ip': '1.1.1.1',
-          'start':time1,
-          'end':time1,
-          'requests':
-          [request1]}
-    s2 = {'ip': '1.1.1.1',
-          'start':time2,
-          'end':time2,
-          'requests':
-          [request2]}
-    s3 = {'ip': '1.1.1.2',
-          'start': time2,
-          'end': time3,
-          'requests':
-              [request2]}
-    s4 = {'ip': '1.1.1.1',
-          'start': time1,
-          'end': time3,
-          'requests':
-              [request2]}
-    s5 = {'ip': '1.1.1.3',
-          'start': time1,
-          'end': time3,
-          'requests':
-              [request1, request1]}
+    s1 = {
+        'id':'s1',
+        'ip': '1.1.1.1',
+        'start':time1,
+        'end':time1,
+        'requests':
+        [request1]}
+    s2 = {
+        'id':'s2',
+        'ip': '1.1.1.1',
+        'start':time2,
+        'end':time2,
+        'requests':
+        [request2]}
+    s3 = {
+        'id':'s3',
+        'ip': '1.1.1.2',
+        'start': time2,
+        'end': time3,
+        'requests':
+        [request2, request1]}
+    s4 = {
+        'id':'s4',
+        'ip': '1.1.1.1',
+        'start': time1,
+        'end': time3,
+        'requests':
+        [request2]}
+    s5 = {
+        'id':'s5',
+        'ip': '1.1.1.3',
+        'start': time1,
+        'end': time3,
+        'requests':
+        [request1, request1]}
 
     @classmethod
     def setUpClass(cls):
         cls.sc = SparkContext(appName="Sessionizer")
         cls.sessionizer = Sessionizer(cls.sc)
-
-    def test_merge_combiners_01(self):
-        sessions1 = [self.s1]
-        sessions2 = [self.s2]
-
-        res = make_merge_combiners_func(timedelta(minutes=15))(sessions1,sessions2)
-
-        self.assertTrue(len(res) == 1)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end']  == self.s2['end'])
-
-    def test_merge_combiners_02(self):
-        sessions1 = [self.s1]
-        sessions2 = [self.s2]
-
-        res = make_merge_combiners_func(timedelta(minutes=5))(sessions1, sessions2)
-
-        self.assertTrue(len(res) == 2)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end'] == self.s1['end'])
-        self.assertTrue(res[1]['start'] == self.s2['start'])
-        self.assertTrue(res[1]['end']  == self.s2['end'])
-
-    def test_merge_combiners_03(self):
-        sessions1 = [self.s1]
-        sessions2 = [self.s2]
-
-        res = make_merge_combiners_func(timedelta(minutes=10))(sessions1, sessions2)
-
-        self.assertTrue(len(res) == 1)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end']  == self.s2['end'])
-
-    def test_merge_combiners_exception_01(self):
-        sessions1 = [self.s1]
-        sessions2 = [self.s2]
-
-        with self.assertRaises(SessionException) as context:
-            res = make_merge_combiners_func(timedelta(minutes=10))(sessions2, sessions1)
-
-    def test_merge_value_01(self):
-        sessions = [self.s1]
-
-        res = make_merge_value_func(timedelta(minutes=15))(sessions, self.s2)
-        self.assertTrue(len(res) == 1)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end']  == self.s2['end'])
-
-    def test_merge_value_02(self):
-        sessions = [self.s1]
-
-        res = make_merge_value_func(timedelta(minutes=5))(sessions, self.s2)
-
-        self.assertTrue(len(res) == 2)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end']  == self.s1['end'])
-        self.assertTrue(res[1]['start'] == self.s2['start'])
-        self.assertTrue(res[1]['end'] == self.s2['end'])
-
-    def test_merge_value_exception_01(self):
-        sessions = [self.s2]
-
-        with self.assertRaises(SessionException) as context:
-            res = make_merge_value_func(timedelta(minutes=5))(sessions, self.s1)
-
-    def test_combiner(self):
-        res = combiner(self.s1)
-
-        self.assertTrue(len(res) == 1)
-        self.assertTrue(res[0]['start'] == self.s1['start'])
-        self.assertTrue(res[0]['end']  == self.s1['end'])
-
 
     def test_calc_sessions_from_file(self):
         filepath = 'data/log_sample.log'
@@ -208,6 +146,16 @@ class TestSessionizer(TestCase):
         sessions_rdd = self.sc.parallelize(sessions)
         unique_visits = self.sessionizer.unique_visits_per_session(sessions_rdd)
 
-        self.assertTrue(len(unique_visits[self.s2['ip']]) == 1)
-        self.assertTrue(len(unique_visits[self.s3['ip']]) == 1)
-        self.assertTrue(len(unique_visits[self.s5['ip']]) == 1)
+        self.assertTrue(unique_visits[self.s2['id']] == 1)
+        self.assertTrue(unique_visits[self.s3['id']] == 2)
+        self.assertTrue(unique_visits[self.s5['id']] == 1)
+
+
+    def test_find_engaged_users(self):
+        sessions = [self.s2,self.s3, self.s5]
+        sessions_rdd = self.sc.parallelize(sessions)
+        engaged = self.sessionizer.find_engaged_users(sessions_rdd)
+
+        self.assertTrue(engaged[0]['id'] == self.s5['id'])
+        self.assertTrue(engaged[1]['id'] == self.s3['id'])
+        self.assertTrue(engaged[2]['id'] == self.s2['id'])
