@@ -12,6 +12,16 @@ def parse_url_path(full_url):
     return res.netloc + res.path
 
 def session_from_entry(entry):
+    '''
+    Creates a session dictionary from a log entry by
+       parsing the string entry and populating the required
+       fields.  Initiatlizes the session start and end times
+       to be the same.  Creates a new unique hash from the
+       entry as the session ID
+
+    :param entry: String log entry
+    :return: Session dictionary
+    '''
     elems = entry.split()
     session = {
         'id':hash(entry),
@@ -27,10 +37,9 @@ def session_combine(s1, s2):
     Combine two web sessions and return a new session that spans the duration
     between the earliest start and latest end of both sessions
 
-
-    :param s1: A web session
-    :param s2: A web session
-    :return: A combined web session
+    :param s1: A session
+    :param s2: A session
+    :return: A combined session
     """
     if not s1['ip'] == s2['ip']:
         raise SessionException('Combined sessions must have the same IP')
@@ -60,6 +69,12 @@ def session_delta(s1, s2):
     return delta3 if delta3 > timedelta(0) else timedelta(0)
 
 def session_serialize(s):
+    '''
+    Serialize the session due to datetime object in
+    session dict
+    :param s: session dict
+    :return: serialized dict
+    '''
 
     s['start'] = s['start'].isoformat()
     s['end'] = s['end'].isoformat()
