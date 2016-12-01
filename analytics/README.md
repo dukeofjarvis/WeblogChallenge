@@ -53,4 +53,5 @@
 1 . Unzip data from <root>/data
 2 . Execute sessionizer from terminal
 
-      python 
+      python <path to log> <session time>
+      

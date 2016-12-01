@@ -2,3 +2,5 @@
 **/dist
 *.pyc
 **/*.egg-info
+**/.tmp
+**/build
